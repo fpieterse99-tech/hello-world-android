@@ -1,0 +1,90 @@
+name: Build Hello World APK
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Create project
+        run: |
+          mkdir -p hello/src/main/java/com/example/hello
+          cd hello
+
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "HelloWorld"
+          EOF
+
+          cat > build.gradle.kts <<'EOF'
+          plugins { id("com.android.application") version "8.5.2" }
+          android {
+              namespace = "com.example.hello"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.example.hello"
+                  minSdk = 26
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+          }
+          EOF
+
+          cat > src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <application android:label="Hello World"
+                  android:theme="@android:style/Theme.Material.Light">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > src/main/java/com/example/hello/MainActivity.java <<'EOF'
+          package com.example.hello;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.view.Gravity;
+          import android.widget.TextView;
+
+          public class MainActivity extends Activity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  TextView tv = new TextView(this);
+                  tv.setText("Hello, World!\nFrom my Galaxy S24 Ultra");
+                  tv.setTextSize(30);
+                  tv.setGravity(Gravity.CENTER);
+                  setContentView(tv);
+              }
+          }
+          EOF
+
+      - name: Build APK
+        run: cd hello && gradle assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hello-world-apk
+          path: hello/build/outputs/apk/debug/*.apk
